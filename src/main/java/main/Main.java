@@ -13,19 +13,24 @@ public class Main {
 
     private static final String QUEUE_NAME = "queue1";
     private static final int MESSAGE_NUM = 6;
+
     public static void main(String[] args) {
-        XAConnection connection = null;
+        run();
+    }
+
+    private static void run() {
+        Connection connection = null;
         Session session = null;
         MessageProducer producer = null;
         try {
             connection = ActiveMqUtil.getConnection();
-            connection.start();
             // 创建Session，有两个参数，分别是是否开启事务、签收
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
             // 创建目的地（可以是队列也可以是Topic）
             Queue queue = session.createQueue(QUEUE_NAME);
             // 创建消息提供者
             producer = session.createProducer(queue);
+            connection.start();
             for (int i = 1; i <= MESSAGE_NUM; i++) {
                 // 创建消息
                 TextMessage textMessage = session.createTextMessage("message" + i);
@@ -36,21 +41,77 @@ public class Main {
         } catch (JMSException e) {
             e.printStackTrace();
         } finally {
-            if(producer != null){
+            if (producer != null) {
                 try {
                     producer.close();
                 } catch (JMSException e) {
                     e.printStackTrace();
                 }
             }
-            if(session != null){
+            if (session != null) {
                 try {
                     session.close();
                 } catch (JMSException e) {
                     e.printStackTrace();
                 }
             }
-            if(connection != null){
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * 支持事务
+     */
+    private static void runWithTx(){
+        Connection connection = null;
+        Session session = null;
+        MessageProducer producer = null;
+        try {
+            connection = ActiveMqUtil.getConnection();
+            // 创建Session，有两个参数，分别是是否开启事务、签收
+            session = connection.createSession(true, Session.AUTO_ACKNOWLEDGE);
+            // 创建目的地（可以是队列也可以是Topic）
+            Queue queue = session.createQueue(QUEUE_NAME);
+            // 创建消息提供者
+            producer = session.createProducer(queue);
+            connection.start();
+            for (int i = 1; i <= MESSAGE_NUM; i++) {
+                // 创建消息
+                TextMessage textMessage = session.createTextMessage("message" + i);
+                // 发送消息
+                producer.send(textMessage);
+            }
+            System.out.println("发送结束");
+            session.commit();
+        } catch (JMSException e) {
+            e.printStackTrace();
+            try {
+                session.rollback();
+            } catch (JMSException jmsException) {
+                jmsException.printStackTrace();
+            }
+        } finally {
+            if (producer != null) {
+                try {
+                    producer.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (JMSException e) {
